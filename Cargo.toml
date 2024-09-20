@@ -1,0 +1,16 @@
+[package]
+name = "hubit"
+description = "A CLI tool for interacting with GitHub Issues and PRs"
+homepage = "https://hubit.adamperkowski.dev"
+repository = "https://github.com/adamperkowski/hubit"
+authors = ["Adam Perkowski <adas1per@protonmail.com>"]
+readme = "README.md"
+license = "GPL-3.0"
+version = "0.0.0"
+edition = "2021"
+include = [
+    "src/*.rs",
+    "Cargo.toml",
+]
+
+[dependencies]
