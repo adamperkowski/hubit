@@ -1,3 +1,5 @@
+use std::any::Any;
+
 use reqwest::{
     header::{HeaderMap, HeaderValue, ACCEPT, AUTHORIZATION, USER_AGENT},
     StatusCode,
@@ -17,10 +19,10 @@ pub fn init() -> reqwest::Client {
     client
 }
 
-pub async fn list_assigned_issues(
+/* pub async fn list_assigned_issues(
     client: reqwest::Client,
     token: SecretBox<String>,
-) -> Result<(), StatusCode> {
+) -> Result<String, StatusCode> {
     let url = "https://api.github.com/issues";
     let mut headers = HeaderMap::new();
 
@@ -38,17 +40,16 @@ pub async fn list_assigned_issues(
         .unwrap(),
     );
 
-    let request = client.get(url).headers(headers).send().await;
-    let response = request.expect(REQ_ERROR).status();
+    let request = client.get(url).headers(headers).send().await.expect(REQ_ERROR);
+    let response = request.status();
 
     match response {
         StatusCode::OK => {
-            println!("Request succeded.");
-            Ok(())
+            Ok(request.text().await.unwrap())
         }
         _ => {
             eprintln!("{}: {}", REQ_ERROR, response);
             Err(response)
         }
     }
-}
+} */
