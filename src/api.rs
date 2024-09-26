@@ -1,5 +1,3 @@
-use std::any::Any;
-
 use reqwest::{
     header::{HeaderMap, HeaderValue, ACCEPT, AUTHORIZATION, USER_AGENT},
     StatusCode,
@@ -15,15 +13,10 @@ const HUBIT_AUTHORIZATION: &str = "Bearer";
 const REQ_ERROR: &str = "Request failed";
 
 pub fn init() -> reqwest::Client {
-    let client = reqwest::Client::new();
-    client
+    reqwest::Client::new()
 }
 
-/* pub async fn list_assigned_issues(
-    client: reqwest::Client,
-    token: SecretBox<String>,
-) -> Result<String, StatusCode> {
-    let url = "https://api.github.com/issues";
+fn assign_headers(token: SecretBox<String>) -> HeaderMap {
     let mut headers = HeaderMap::new();
 
     headers.insert(ACCEPT, HeaderValue::from_static(ACCEPT_VND));
@@ -40,16 +33,47 @@ pub fn init() -> reqwest::Client {
         .unwrap(),
     );
 
-    let request = client.get(url).headers(headers).send().await.expect(REQ_ERROR);
-    let response = request.status();
+    headers
+}
 
-    match response {
-        StatusCode::OK => {
-            Ok(request.text().await.unwrap())
-        }
+fn match_statuscode(status_code: StatusCode) -> Result<(), StatusCode> {
+    match status_code {
+        StatusCode::OK => Ok(()),
         _ => {
-            eprintln!("{}: {}", REQ_ERROR, response);
-            Err(response)
+            eprintln!("{}: {}", REQ_ERROR, status_code);
+            Err(status_code)
         }
     }
-} */
+}
+
+pub async fn create_issue(
+    client: reqwest::Client,
+    token: SecretBox<String>,
+    _args: Vec<&str>,
+) -> Result<(), StatusCode> {
+    let url = format!(
+        "https://api.github.com/repos/{}/{}/issues",
+        _args[0], _args[1]
+    );
+    let headers = assign_headers(token);
+    let body = json!(
+        {
+            "title":"test issue",
+            "body":"opened by Hubit",
+            "assignees":[""],
+            "milestone":"",
+            "labels":["bug"],
+        }
+    );
+
+    let request = client
+        .post(url)
+        .headers(headers)
+        .json(&body)
+        .send()
+        .await
+        .expect(REQ_ERROR);
+    let response = request.status();
+
+    match_statuscode(response)
+}

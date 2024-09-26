@@ -1,11 +1,14 @@
 use secrecy::{ExposeSecret, SecretBox};
 use std::{env, fs, io, io::Write, path::Path, process};
 
-mod api;
+pub mod api;
+mod commands;
+
+use commands::{COMMANDS, COMMAND_GROUPS};
 
 #[tokio::main]
 async fn main() {
-    println!("Welcome to Hubit!\n");
+    println!("Welcome to Hubit!");
 
     let token_path = Path::new(&env::var("XDG_CONFIG_HOME").unwrap_or_else(|_| {
         let home = env::var("HOME").unwrap_or_else(|_| ".".to_string());
@@ -25,22 +28,50 @@ async fn main() {
     let request_client = api::init();
 
     loop {
-        print!("> ");
+        print!("\n> ");
         io::stdout().flush().expect("Failed to flush stdout");
 
         let mut input = String::new();
-        io::stdin()
-            .read_line(&mut input)
-            .expect("Failed to read input");
-
-        input.pop();
-
-        match input.as_str() {
-            "exit" | "quit" => break,
-            _ => eprintln!("Command not found: {}", input),
+        if io::stdin().read_line(&mut input).is_err() {
+            eprintln!("Failed to read input");
+            continue;
         }
 
-        print!("\n");
+        let input = input.trim();
+        let mut input_args: Vec<&str> = input.split_whitespace().collect();
+
+        if input_args.is_empty() {
+            continue;
+        }
+
+        let input_group = input_args.remove(0);
+
+        if let Some(group) = COMMAND_GROUPS.iter().find(|com_group| {
+            com_group.name == input_group || com_group.alias.contains(&input_group)
+        }) {
+            if input_args.is_empty() {
+                eprintln!("{}: {}", group.name, group.docs);
+                continue;
+            }
+            let input_command = input_args.remove(0);
+            if let Some(command) = COMMANDS
+                .iter()
+                .find(|com| com.name == input_command || com.alias.contains(&input_command))
+            {
+                if input_args.is_empty() {
+                    eprintln!("{} {}: {}", command.name, command.args, command.docs);
+                    continue;
+                }
+
+                for arg in input_args {
+                    println!("{}", arg);    // process_arg
+                }
+            }
+        } else if input_group == "exit" || input_group == "quit" {
+            break;
+        } else {
+            eprintln!("Command not found: {}", input);
+        }
     }
 }
 
@@ -52,7 +83,7 @@ fn request_pat() -> SecretBox<String> {
     io::stdin()
         .read_line(&mut input)
         .expect("Failed to read input");
-    
+
     input.pop();
 
     print!("\x1B[1A");
@@ -63,6 +94,10 @@ fn request_pat() -> SecretBox<String> {
 }
 
 fn store_pat(path: &Path, token: SecretBox<String>) -> Result<(), std::io::Error> {
+    if let Some(parent) = Path::new(path).parent() {
+        fs::create_dir_all(parent)?;
+    }
+
     let mut file = fs::File::create(path)?;
     file.write_all(token.expose_secret().as_bytes())?;
     Ok(())
