@@ -5,6 +5,14 @@ use secrecy::SecretBox;
 
 use crate::api::*;
 
+pub type CommandFunction = Box<
+    dyn Fn(
+        Client,
+        SecretBox<String>,
+        Vec<&'static str>,
+    ) -> Pin<Box<dyn Future<Output = Result<(), StatusCode>>>>,
+>;
+
 #[derive(PartialEq)]
 pub struct CommandGroup {
     pub name: &'static str,
@@ -18,13 +26,7 @@ pub struct Command {
     pub alias: &'static [&'static str],
     pub group: &'static CommandGroup,
     pub docs: &'static str,
-    pub func: Box<
-        dyn Fn(
-            Client,
-            SecretBox<String>,
-            Vec<&'static str>,
-        ) -> Pin<Box<dyn Future<Output = Result<(), StatusCode>>>>,
-    >,
+    pub func: CommandFunction,
 }
 
 pub const COMMAND_GROUPS: &[CommandGroup] = &[CommandGroup {

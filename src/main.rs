@@ -4,7 +4,7 @@ use std::{env, fs, io, io::Write, path::Path, path::PathBuf, process};
 pub mod api;
 mod commands;
 
-use commands::{init_commands, COMMAND_GROUPS};
+use commands::{init_commands, CommandFunction, COMMAND_GROUPS};
 
 #[tokio::main]
 async fn main() {
@@ -18,8 +18,6 @@ async fn main() {
         process::exit(0);
     }
 
-    let token = get_pat(&token_path);
-
     let request_client = api::init();
     let commands = init_commands();
 
@@ -32,10 +30,18 @@ async fn main() {
             continue;
         }
 
+        let token = get_pat(&token_path);
+
         let input_args: Vec<&str> = input.split_whitespace().collect();
 
         match handle_input(input_args, &commands) {
-            Ok(_) => (),
+            Ok(command_func) => command_func(
+                request_client.clone(),
+                token,
+                vec!["adamperkowski", "hubit_test_repo"],
+            )
+            .await
+            .expect("Failed to execute"),
             Err(err) => eprintln!("Error: {}", err),
         }
     }
@@ -93,7 +99,10 @@ fn read_input_line() -> String {
     input.trim().to_string()
 }
 
-fn handle_input(input_args: Vec<&str>, commands: &[commands::Command]) -> Result<(), String> {
+fn handle_input<'a>(
+    input_args: Vec<&'a str>,
+    commands: &'a [commands::Command],
+) -> Result<&'a CommandFunction, String> {
     let input_group = input_args.get(0).ok_or("No command provided")?;
 
     if *input_group == "exit" || *input_group == "quit" {
@@ -115,20 +124,19 @@ fn handle_input(input_args: Vec<&str>, commands: &[commands::Command]) -> Result
         });
 
         if let Some(command) = command {
-            if input_args.len() < 3 {
+            Ok(&command.func)
+            /* if input_args.len() < 3 {
                 eprintln!("{} {}: {}", command.name, command.args, command.docs);
                 ()
             }
 
-            /* for arg in input_args.iter().skip(2) {
+            for arg in input_args.iter().skip(2) {
                 // process_arg
             } */
         } else {
-            return Err(format!("Command not found: {}", input_command));
+            Err(format!("Command not found: {}", input_command))
         }
     } else {
-        return Err(format!("Command not found: {}", input_group));
+        Err(format!("Command not found: {}", input_group))
     }
-
-    Ok(())
 }
