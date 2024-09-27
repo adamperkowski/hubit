@@ -58,7 +58,7 @@ pub async fn create_issue(
         _args[0], _args[1]
     );
     let headers = assign_headers(token);
-    let body = json!(
+    let body = json!( // ask user and add options here
         {
             "title":"test issue",
             "body":"opened by Hubit",
