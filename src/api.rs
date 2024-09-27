@@ -39,6 +39,8 @@ fn assign_headers(token: SecretBox<String>) -> HeaderMap {
 fn match_statuscode(status_code: StatusCode) -> Result<(), StatusCode> {
     match status_code {
         StatusCode::OK => Ok(()),
+        StatusCode::CREATED => Ok(()),
+        StatusCode::ACCEPTED => Ok(()),
         _ => {
             eprintln!("{}: {}", REQ_ERROR, status_code);
             Err(status_code)
@@ -60,8 +62,6 @@ pub async fn create_issue(
         {
             "title":"test issue",
             "body":"opened by Hubit",
-            "assignees":[""],
-            "milestone":"",
             "labels":["bug"],
         }
     );
