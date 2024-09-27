@@ -4,7 +4,7 @@ use std::{env, fs, io, io::Write, path::Path, process};
 pub mod api;
 mod commands;
 
-use commands::{COMMANDS, COMMAND_GROUPS};
+use commands::{init_commands, COMMAND_GROUPS};
 
 #[tokio::main]
 async fn main() {
@@ -26,6 +26,7 @@ async fn main() {
     let token = get_pat(&token_path);
 
     let request_client = api::init();
+    let commands = init_commands();
 
     loop {
         print!("\n> ");
@@ -54,9 +55,9 @@ async fn main() {
                 continue;
             }
             let input_command = input_args.remove(0);
-            if let Some(command) = COMMANDS
+            if let Some(command) = commands
                 .iter()
-                .find(|com| com.name == input_command || com.alias.contains(&input_command))
+                .find(|com| com.group == group && com.name == input_command || com.group == group && com.alias.contains(&input_command))
             {
                 if input_args.is_empty() {
                     eprintln!("{} {}: {}", command.name, command.args, command.docs);
@@ -64,7 +65,7 @@ async fn main() {
                 }
 
                 for arg in input_args {
-                    println!("{}", arg);    // process_arg
+                    println!("{}", arg); // process_arg
                 }
             }
         } else if input_group == "exit" || input_group == "quit" {
