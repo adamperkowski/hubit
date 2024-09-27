@@ -1,5 +1,5 @@
 use secrecy::{ExposeSecret, SecretBox};
-use std::{env, fs, io, io::Write, path::Path, process};
+use std::{env, fs, io, io::Write, path::Path, path::PathBuf, process};
 
 pub mod api;
 mod commands;
@@ -10,12 +10,7 @@ use commands::{init_commands, COMMAND_GROUPS};
 async fn main() {
     println!("Welcome to Hubit!");
 
-    let token_path = Path::new(&env::var("XDG_CONFIG_HOME").unwrap_or_else(|_| {
-        let home = env::var("HOME").unwrap_or_else(|_| ".".to_string());
-        format!("{}/.config", home)
-    }))
-    .join("hubit/github_token");
-
+    let token_path = get_token_path();
     if !token_path.exists() {
         println!("Token not found. Requesting...");
         store_pat(&token_path, request_pat()).expect("Failed to store PAT");
@@ -32,48 +27,26 @@ async fn main() {
         print!("\n> ");
         io::stdout().flush().expect("Failed to flush stdout");
 
-        let mut input = String::new();
-        if io::stdin().read_line(&mut input).is_err() {
-            eprintln!("Failed to read input");
+        let input = read_input_line();
+        if input.is_empty() {
             continue;
         }
 
-        let input = input.trim();
-        let mut input_args: Vec<&str> = input.split_whitespace().collect();
+        let input_args: Vec<&str> = input.split_whitespace().collect();
 
-        if input_args.is_empty() {
-            continue;
-        }
-
-        let input_group = input_args.remove(0);
-
-        if let Some(group) = COMMAND_GROUPS.iter().find(|com_group| {
-            com_group.name == input_group || com_group.alias.contains(&input_group)
-        }) {
-            if input_args.is_empty() {
-                eprintln!("{}: {}", group.name, group.docs);
-                continue;
-            }
-            let input_command = input_args.remove(0);
-            if let Some(command) = commands
-                .iter()
-                .find(|com| com.group == group && com.name == input_command || com.group == group && com.alias.contains(&input_command))
-            {
-                if input_args.is_empty() {
-                    eprintln!("{} {}: {}", command.name, command.args, command.docs);
-                    continue;
-                }
-
-                for arg in input_args {
-                    println!("{}", arg); // process_arg
-                }
-            }
-        } else if input_group == "exit" || input_group == "quit" {
-            break;
-        } else {
-            eprintln!("Command not found: {}", input);
+        match handle_input(input_args, &commands) {
+            Ok(_) => (),
+            Err(err) => eprintln!("Error: {}", err),
         }
     }
+}
+
+fn get_token_path() -> PathBuf {
+    let config_dir = env::var("XDG_CONFIG_HOME").unwrap_or_else(|_| {
+        let home = env::var("HOME").unwrap_or_else(|_| ".".to_string());
+        format!("{}/.config", home)
+    });
+    Path::new(&config_dir).join("hubit/github_token")
 }
 
 fn request_pat() -> SecretBox<String> {
@@ -110,4 +83,52 @@ fn get_pat(path: &Path) -> SecretBox<String> {
             .expect("Failed to read token")
             .into(),
     )
+}
+
+fn read_input_line() -> String {
+    let mut input = String::new();
+    io::stdin()
+        .read_line(&mut input)
+        .expect("Failed to read input");
+    input.trim().to_string()
+}
+
+fn handle_input(input_args: Vec<&str>, commands: &[commands::Command]) -> Result<(), String> {
+    let input_group = input_args.get(0).ok_or("No command provided")?;
+
+    if *input_group == "exit" || *input_group == "quit" {
+        process::exit(0);
+    }
+
+    let input_command = input_args
+        .get(1)
+        .ok_or(format!("Command not found: {}", input_group))?;
+
+    let command_group = COMMAND_GROUPS
+        .iter()
+        .find(|com_group| com_group.name == *input_group || com_group.alias.contains(&input_group));
+
+    if let Some(command_group) = command_group {
+        let command = commands.iter().find(|com| {
+            com.group == command_group && com.name == *input_command
+                || com.alias.contains(input_command)
+        });
+
+        if let Some(command) = command {
+            if input_args.len() < 3 {
+                eprintln!("{} {}: {}", command.name, command.args, command.docs);
+                ()
+            }
+
+            /* for arg in input_args.iter().skip(2) {
+                // process_arg
+            } */
+        } else {
+            return Err(format!("Command not found: {}", input_command));
+        }
+    } else {
+        return Err(format!("Command not found: {}", input_group));
+    }
+
+    Ok(())
 }
