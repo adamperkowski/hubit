@@ -73,6 +73,7 @@ pub async fn create_issue(
         .send()
         .await
         .expect(REQ_ERROR);
+
     let response = request.status();
 
     match_statuscode(response)

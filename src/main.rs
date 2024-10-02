@@ -15,6 +15,7 @@ async fn main() {
         println!("Token not found. Requesting...");
         store_pat(&token_path, request_pat()).expect("Failed to store PAT");
         println!("Token stored.");
+
         process::exit(0);
     }
 
@@ -52,19 +53,14 @@ fn get_token_path() -> PathBuf {
         let home = env::var("HOME").unwrap_or_else(|_| ".".to_string());
         format!("{}/.config", home)
     });
+
     Path::new(&config_dir).join("hubit/github_token")
 }
 
 fn request_pat() -> SecretBox<String> {
     print!("Paste your GitHub PAT (Personal Access Token) below.\nYou can generate a PAT here: https://github.com/settings/tokens/new\nThe needed scopes are: repo. It's recommended to set expiration to 'No expiration'.\n\n> ");
-    io::stdout().flush().expect("Failed to flush stdout");
 
-    let mut input = String::new();
-    io::stdin()
-        .read_line(&mut input)
-        .expect("Failed to read input");
-
-    input.pop();
+    let input = read_input_line();
 
     print!("\x1B[1A");
     print!("\x1B[2K");
@@ -80,6 +76,7 @@ fn store_pat(path: &Path, token: SecretBox<String>) -> Result<(), std::io::Error
 
     let mut file = fs::File::create(path)?;
     file.write_all(token.expose_secret().as_bytes())?;
+
     Ok(())
 }
 
@@ -92,10 +89,13 @@ fn get_pat(path: &Path) -> SecretBox<String> {
 }
 
 fn read_input_line() -> String {
+    io::stdout().flush().expect("Failed to flush stdout");
+
     let mut input = String::new();
     io::stdin()
         .read_line(&mut input)
         .expect("Failed to read input");
+
     input.trim().to_string()
 }
 
@@ -103,7 +103,7 @@ fn handle_input<'a>(
     input_args: Vec<&'a str>,
     commands: &'a [commands::Command],
 ) -> Result<&'a CommandFunction, String> {
-    let input_group = input_args.get(0).ok_or("No command provided")?;
+    let input_group = input_args.first().ok_or("No command provided")?;
 
     if *input_group == "exit" || *input_group == "quit" {
         process::exit(0);
@@ -115,7 +115,7 @@ fn handle_input<'a>(
 
     let command_group = COMMAND_GROUPS
         .iter()
-        .find(|com_group| com_group.name == *input_group || com_group.alias.contains(&input_group));
+        .find(|com_group| com_group.name == *input_group || com_group.alias.contains(input_group));
 
     if let Some(command_group) = command_group {
         let command = commands.iter().find(|com| {

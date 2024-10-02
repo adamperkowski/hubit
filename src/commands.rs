@@ -1,16 +1,13 @@
 use std::{future::Future, pin::Pin};
 
-use reqwest::{Client, StatusCode};
-use secrecy::SecretBox;
-
 use crate::api::*;
 
 pub type CommandFunction = Box<
     dyn Fn(
-        Client,
-        SecretBox<String>,
+        reqwest::Client,
+        secrecy::SecretBox<String>,
         Vec<&'static str>,
-    ) -> Pin<Box<dyn Future<Output = Result<(), StatusCode>>>>,
+    ) -> Pin<Box<dyn Future<Output = Result<(), reqwest::StatusCode>>>>,
 >;
 
 #[derive(PartialEq)]
