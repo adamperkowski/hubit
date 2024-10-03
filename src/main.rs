@@ -3,18 +3,23 @@ use std::{env, fs, io, io::Write, path::Path, path::PathBuf, process};
 
 pub mod api;
 mod commands;
+mod text;
 
 use commands::{init_commands, CommandFunction, COMMAND_GROUPS};
+use text::SHELL_CHARS;
 
 #[tokio::main]
 async fn main() {
-    println!("Welcome to Hubit!");
+    text::welcome();
 
     let token_path = get_token_path();
     if !token_path.exists() {
-        println!("Token not found. Requesting...");
+        println!(
+            "{} Token not found.\n{} Requesting...",
+            SHELL_CHARS.error, SHELL_CHARS.info
+        );
         store_pat(&token_path, request_pat()).expect("Failed to store PAT");
-        println!("Token stored.");
+        println!("{} Token stored.", SHELL_CHARS.success);
 
         process::exit(0);
     }
@@ -23,13 +28,16 @@ async fn main() {
     let commands = init_commands();
 
     loop {
-        print!("\n> ");
-        io::stdout().flush().expect("Failed to flush stdout");
+        print!("{} ", SHELL_CHARS.prompt);
 
         let input = read_input_line();
         if input.is_empty() {
+            print!("\x1B[1A");
             continue;
         }
+
+        print!("\x1B[1A");
+        text::command_processed(input.clone());
 
         let token = get_pat(&token_path);
 
@@ -43,7 +51,7 @@ async fn main() {
             )
             .await
             .expect("Failed to execute"),
-            Err(err) => eprintln!("Error: {}", err),
+            Err(err) => eprintln!("{} {}", SHELL_CHARS.error, err),
         }
     }
 }
@@ -58,13 +66,13 @@ fn get_token_path() -> PathBuf {
 }
 
 fn request_pat() -> SecretBox<String> {
-    print!("Paste your GitHub PAT (Personal Access Token) below.\nYou can generate a PAT here: https://github.com/settings/tokens/new\nThe needed scopes are: repo. It's recommended to set expiration to 'No expiration'.\n\n> ");
+    print!("\nPaste your GitHub PAT (Personal Access Token) below.\nYou can generate a PAT here: https://github.com/settings/tokens/new\nThe needed scopes are: repo. It's recommended to set expiration to 'No expiration'.\n\n{} ", SHELL_CHARS.prompt);
 
     let input = read_input_line();
 
     print!("\x1B[1A");
-    print!("\x1B[2K");
-    print!("\x1B[2K> [TOKEN]\n\n");
+    text::command_processed("[TOKEN]".to_string());
+    println!();
 
     SecretBox::new(input.into())
 }
